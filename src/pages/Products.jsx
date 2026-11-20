@@ -1,6 +1,14 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getProducts, getCategories, getCategoryProducts, searchProducts } from "../services/api";
+
+import {
+  getProducts,
+  getCategories,
+  getCategoryProducts,
+  searchProducts,
+} from "../services/api";
+
 import ProductCard from "../components/ProductCard";
 
 function Products() {
@@ -8,17 +16,33 @@ function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "";
 
+  // Load categories
   useEffect(() => {
-    getCategories()
-      .then(setCategories)
-      .catch(() => setError("Unable to load categories."));
+    const loadCategories = async () => {
+      try {
+        const data = await getCategories();
+
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          setCategories([]);
+        }
+      } catch (error) {
+        console.error("Category error:", error);
+        setCategories([]);
+      }
+    };
+
+    loadCategories();
   }, []);
 
+  // Load products
   useEffect(() => {
     let active = true;
 
@@ -29,19 +53,37 @@ function Products() {
       try {
         let data;
 
-        if (search) {
-          data = await searchProducts(search);
+        if (search.trim()) {
+          data = await searchProducts(search.trim());
         } else if (category) {
           data = await getCategoryProducts(category);
         } else {
           data = await getProducts();
         }
 
-        if (active) setProducts(data.products);
-      } catch {
-        if (active) setError("Could not load products. Please try again.");
+        console.log("Products API response:", data);
+
+        if (active) {
+          if (Array.isArray(data.products)) {
+            setProducts(data.products);
+          } else {
+            setProducts([]);
+            setError("Products data was not returned correctly.");
+          }
+        }
+      } catch (error) {
+        console.error("Product loading error:", error);
+
+        if (active) {
+          setProducts([]);
+          setError(
+            "Could not load products. Please check your internet connection and try again."
+          );
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -52,6 +94,7 @@ function Products() {
     };
   }, [search, category]);
 
+  // Change category
   const changeCategory = (value) => {
     const params = new URLSearchParams(searchParams);
 
@@ -71,6 +114,7 @@ function Products() {
       <div className="section-heading">
         <div>
           <p className="eyebrow">FIND YOUR FAVOURITES</p>
+
           <h2>
             {search
               ? `Search: ${search}`
@@ -79,9 +123,10 @@ function Products() {
                 : "All Products"}
           </h2>
         </div>
+
         <span>
-  {loading ? "Loading..." : `${products.length} products`}
-</span>
+          {loading ? "Loading..." : `${products.length} products`}
+        </span>
       </div>
 
       <div className="filter-bar">
@@ -90,7 +135,7 @@ function Products() {
         <select
           id="category"
           value={category}
-          onChange={(e) => changeCategory(e.target.value)}
+          onChange={(event) => changeCategory(event.target.value)}
         >
           <option value="">All Categories</option>
 
@@ -111,7 +156,10 @@ function Products() {
       ) : (
         <div className="product-grid">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+            />
           ))}
         </div>
       )}

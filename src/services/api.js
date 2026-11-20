@@ -1,13 +1,28 @@
-const API_URL = "https://dummyjson.com";
+
+const API_URL = "https://fakestoreapi.com";
+
+// Convert Fake Store API products into your Temu product format
+const formatProduct = (product) => ({
+  ...product,
+  thumbnail: product.image,
+  images: [product.image],
+  discountPercentage: 0,
+  rating: product.rating?.rate ?? 0,
+  category: product.category,
+});
 
 export const getProducts = async () => {
-  const response = await fetch(`${API_URL}/products?limit=100`);
+  const response = await fetch(`${API_URL}/products`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch products");
   }
 
-  return response.json();
+  const data = await response.json();
+
+  return {
+    products: data.map(formatProduct),
+  };
 };
 
 export const getProduct = async (id) => {
@@ -17,23 +32,25 @@ export const getProduct = async (id) => {
     throw new Error("Product not found");
   }
 
-  return response.json();
+  const data = await response.json();
+
+  return formatProduct(data);
 };
 
 export const searchProducts = async (query) => {
-  const response = await fetch(
-    `${API_URL}/products/search?q=${encodeURIComponent(query)}`
+  const data = await getProducts();
+
+  const filteredProducts = data.products.filter((product) =>
+    product.title.toLowerCase().includes(query.toLowerCase())
   );
 
-  if (!response.ok) {
-    throw new Error("Search failed");
-  }
-
-  return response.json();
+  return {
+    products: filteredProducts,
+  };
 };
 
 export const getCategories = async () => {
-  const response = await fetch(`${API_URL}/products/category-list`);
+  const response = await fetch(`${API_URL}/products/categories`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch categories");
@@ -51,5 +68,9 @@ export const getCategoryProducts = async (category) => {
     throw new Error("Failed to fetch category products");
   }
 
-  return response.json();
+  const data = await response.json();
+
+  return {
+    products: data.map(formatProduct),
+  };
 };

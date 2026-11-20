@@ -2,14 +2,70 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  LockKeyhole,
-  CreditCard,
   ArrowLeft,
   CheckCircle,
   ShoppingBag,
+  CreditCard,
+  Smartphone,
+  Building2,
+  Wallet,
+  LockKeyhole,
 } from "lucide-react";
+
 import { useCart } from "../context/CartContext";
 import { formatNaira, toNaira } from "../utils/currency";
+
+const paymentOptions = [
+  {
+    id: "opay",
+    name: "OPay",
+    description: "OPay wallet payment",
+    logo: "O",
+    logoClass: "opay-logo",
+  },
+  {
+    id: "visa",
+    name: "Visa",
+    description: "Visa card payment",
+    logo: "VISA",
+    logoClass: "visa-logo",
+  },
+  {
+    id: "verve",
+    name: "Verve",
+    description: "Verve card payment",
+    logo: "Verve",
+    logoClass: "verve-logo",
+  },
+  {
+    id: "google",
+    name: "Google Pay",
+    description: "Google Pay wallet",
+    logo: "G Pay",
+    logoClass: "google-logo",
+  },
+  {
+    id: "cash",
+    name: "Cash on Delivery",
+    description: "Pay when your order arrives",
+    logo: "COD",
+    logoClass: "cash-logo",
+  },
+  {
+    id: "transfer",
+    name: "Bank Transfer",
+    description: "Bank transfer demonstration",
+    logo: "BANK",
+    logoClass: "transfer-logo",
+  },
+  {
+    id: "ussd",
+    name: "USSD",
+    description: "USSD payment demonstration",
+    logo: "*",
+    logoClass: "ussd-logo",
+  },
+];
 
 function Checkout() {
   const { cart, clearCart } = useCart();
@@ -19,21 +75,33 @@ function Checkout() {
     email: "",
     phone: "",
     address: "",
+  });
+
+  const [demoCard, setDemoCard] = useState({
+    cardholder: "",
     cardNumber: "",
     expiry: "",
     cvv: "",
   });
 
+  const [selectedPayment, setSelectedPayment] = useState("cash");
   const [error, setError] = useState("");
   const [paid, setPaid] = useState(false);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [completedMethod, setCompletedMethod] = useState("");
+  const [customerName, setCustomerName] = useState("");
 
   const total = cart.reduce((sum, item) => {
-  const discountedPrice =
-    item.price -
-    (item.price * item.discountPercentage) / 100;
+    const discountedPrice =
+      item.price -
+      (item.price * (item.discountPercentage || 0)) / 100;
 
-  return sum + toNaira(discountedPrice) * item.quantity;
-}, 0) ;
+    return sum + toNaira(discountedPrice) * item.quantity;
+  }, 0);
+
+  const selectedOption = paymentOptions.find(
+    (option) => option.id === selectedPayment
+  );
 
   const handleChange = (e) => {
     setForm({
@@ -42,30 +110,47 @@ function Checkout() {
     });
   };
 
-  const handlePayment = (e) => {
+  const handleCardChange = (e) => {
+    setDemoCard({
+      ...demoCard,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const finishOrder = () => {
+    setCompletedTotal(total);
+    setCompletedMethod(selectedOption.name);
+    setCustomerName(form.name);
+
+    clearCart();
+    setPaid(true);
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
 
-    if (cart.length === 0) {
-      setError("Your cart is empty.");
+    if (!form.name || !form.email || !form.phone || !form.address) {
+      setError("Please complete your delivery information.");
       return;
     }
 
-    // Accept fictional demo details only.
     if (
-      form.cardNumber.replace(/\s/g, "") !== "4242424242424242" ||
-      form.expiry !== "12/30" ||
-      form.cvv !== "123"
+      selectedPayment === "visa" ||
+      selectedPayment === "verve"
     ) {
-      setError(
-        "Invalid demo card details. Please use the sample details shown below."
-      );
-      return;
+      if (
+        !demoCard.cardholder.trim() ||
+        !demoCard.cardNumber.trim() ||
+        !demoCard.expiry.trim() ||
+        !demoCard.cvv.trim()
+      ) {
+        setError("Please complete all the demo card fields.");
+        return;
+      }
     }
 
-    // Simulated payment: no API, no real charge.
-    clearCart();
-    setPaid(true);
+    finishOrder();
   };
 
   if (paid) {
@@ -74,21 +159,26 @@ function Checkout() {
         <div className="payment-success">
           <CheckCircle size={75} color="#16a34a" />
 
-          <p className="eyebrow">DEMO PAYMENT COMPLETE</p>
+          <p className="eyebrow">ORDER CONFIRMED</p>
 
-          <h1>Payment Successful!</h1>
+          <h1>Order Placed Successfully!</h1>
 
           <p>
-            Thank you, {form.name}! Your demo order has been
-            completed successfully.
+            Thank you, {customerName}! Your demonstration order
+            has been completed.
           </p>
 
           <p>
-            Order Total: <strong>{formatNaira(total)}</strong>
+            Payment Method: <strong>{completedMethod}</strong>
+          </p>
+
+          <p>
+            Order Total: <strong>{formatNaira(completedTotal)}</strong>
           </p>
 
           <p className="secure-note">
-            This was a simulated payment. No money was charged.
+            This was a simulated checkout. No payment was
+            collected, sent or verified.
           </p>
 
           <Link to="/" className="primary-btn">
@@ -104,6 +194,7 @@ function Checkout() {
     return (
       <main className="container section empty-cart">
         <h2>Your cart is empty</h2>
+
         <Link to="/products" className="primary-btn">
           Continue Shopping
         </Link>
@@ -114,17 +205,18 @@ function Checkout() {
   return (
     <main className="container section checkout-page">
       <Link to="/cart" className="back-link">
-        <ArrowLeft size={18} /> Back to cart
+        <ArrowLeft size={18} />
+        Back to cart
       </Link>
 
       <div className="checkout-heading">
-        <p className="eyebrow">DEMO CHECKOUT</p>
+        <p className="eyebrow">CHECKOUT</p>
         <h1>Complete Your Order</h1>
-        <p>Enter your delivery and demo card information.</p>
+        <p>Enter your delivery information and choose a payment method.</p>
       </div>
 
       <div className="checkout-layout">
-        <form className="checkout-form" onSubmit={handlePayment}>
+        <form className="checkout-form" onSubmit={handleSubmit}>
           <h2>Delivery Information</h2>
 
           <label>Full Name</label>
@@ -161,73 +253,234 @@ function Checkout() {
             name="address"
             value={form.address}
             onChange={handleChange}
-            placeholder="Your delivery address"
+            placeholder="Enter your delivery address"
             rows={4}
             required
           />
 
-          <div className="demo-card">
-            <div className="demo-card-heading">
-              <CreditCard size={24} />
-              <strong>Demo Card Details</strong>
+          <section className="payment-choice-section">
+            <h2>Choose Payment Method</h2>
+
+            <div className="payment-choice-grid">
+              {paymentOptions.map((option) => (
+                <button
+                  type="button"
+                  key={option.id}
+                  className={`payment-choice ${
+                    selectedPayment === option.id ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedPayment(option.id);
+                    setError("");
+                  }}
+                >
+                  <span className={`payment-logo ${option.logoClass}`}>
+                    {option.logo}
+                  </span>
+
+                  <span className="payment-choice-text">
+                    <strong>{option.name}</strong>
+                    <small>{option.description}</small>
+                  </span>
+
+                  <span className="payment-radio">
+                    {selectedPayment === option.id && (
+                      <CheckCircle
+                        size={22}
+                        fill="#ff6900"
+                        color="#ff6900"
+                      />
+                    )}
+                  </span>
+                </button>
+              ))}
             </div>
 
-            <p>Input Your Card Details</p>
-
-            <div className="demo-card-number">
-              4242 4242 4242 4242
+            <div className="payment-selected-message">
+              <strong>{selectedOption.name} selected.</strong>{" "}
+              {selectedOption.description}.
             </div>
+          </section>
 
-            <div className="demo-card-bottom">
-              <span>EXPIRY: 12/30</span>
-              <span>CVV: 123</span>
-            </div>
+          {(selectedPayment === "visa" ||
+            selectedPayment === "verve") && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <CreditCard size={23} />
+                <h3>
+                  {selectedPayment === "visa"
+                    ? "Visa Card Payment"
+                    : "Verve Card Payment"}
+                </h3>
+              </div>
 
-            <small>
-              DEMO ONLY — Cleric A.
-            </small>
-          </div>
+              <p>
+                Presentation demo only. Enter fictional card
+                information, not real payment credentials.
+              </p>
 
-          <h2>Card Information</h2>
-
-          <label>Demo Card Number</label>
-          <input
-            name="cardNumber"
-            value={form.cardNumber}
-            onChange={handleChange}
-            placeholder="4242 4242 4242 4242"
-            inputMode="numeric"
-            maxLength={19}
-            required
-          />
-
-          <div className="card-input-row">
-            <div>
-              <label>Expiry Date</label>
+              <label>Cardholder Name</label>
               <input
-                name="expiry"
-                value={form.expiry}
-                onChange={handleChange}
-                placeholder="12/30"
-                maxLength={5}
-                required
+                name="cardholder"
+                value={demoCard.cardholder}
+                onChange={handleCardChange}
+                placeholder="Enter cardholder name"
+                autoComplete="off"
               />
-            </div>
 
-            <div>
-              <label>CVV</label>
+              <label>Card Number</label>
               <input
-                name="cvv"
-                type="password"
-                value={form.cvv}
-                onChange={handleChange}
-                placeholder="123"
-                maxLength={3}
+                name="cardNumber"
+                value={demoCard.cardNumber}
+                onChange={handleCardChange}
+                placeholder="Enter fictional card number"
                 inputMode="numeric"
-                required
+                autoComplete="off"
               />
-            </div>
-          </div>
+
+              <div className="card-input-row">
+                <div>
+                  <label>Expiry Date</label>
+                  <input
+                    name="expiry"
+                    value={demoCard.expiry}
+                    onChange={handleCardChange}
+                    placeholder="MM/YY"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label>CVV</label>
+                  <input
+                    name="cvv"
+                    value={demoCard.cvv}
+                    onChange={handleCardChange}
+                    placeholder="CVV"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <p className="secure-note">
+                <LockKeyhole size={15} />
+                Demo fields only. Values are not transmitted or saved.
+              </p>
+            </section>
+          )}
+
+          {selectedPayment === "opay" && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <Wallet size={23} />
+                <h3>OPay Wallet</h3>
+              </div>
+
+              <p>
+                OPay wallet payment demonstration. No real wallet
+                account is connected.
+              </p>
+
+              <label>Demo Wallet Phone Number</label>
+              <input
+                placeholder="Enter a fictional phone number"
+                inputMode="tel"
+              />
+            </section>
+          )}
+
+          {selectedPayment === "google" && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <Wallet size={23} />
+                <h3>Google Pay</h3>
+              </div>
+
+              <div className="demo-wallet-message">
+                <span className="google-logo">G Pay</span>
+                <strong>Google Pay demonstration selected</strong>
+              </div>
+            </section>
+          )}
+
+          {selectedPayment === "transfer" && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <Building2 size={23} />
+                <h3>Bank Transfer</h3>
+              </div>
+
+              <p>
+                Bank transfer demonstration. These are placeholder
+                details and cannot receive money.
+              </p>
+
+              <div className="transfer-demo-details">
+                <div>
+                  <span>Bank</span>
+                  <strong>DEMO BANK</strong>
+                </div>
+
+                <div>
+                  <span>Account Name</span>
+                  <strong>DEMO STORE</strong>
+                </div>
+
+                <div>
+                  <span>Account Number</span>
+                  <strong>DEMO ONLY — NOT REAL</strong>
+                </div>
+
+                <div>
+                  <span>Amount</span>
+                  <strong>{formatNaira(total)}</strong>
+                </div>
+
+                <div>
+                  <span>Reference</span>
+                  <strong>DEMO-TRANSFER</strong>
+                </div>
+              </div>
+
+              <p className="secure-note">
+                No actual bank transfer is made or verified.
+              </p>
+            </section>
+          )}
+
+          {selectedPayment === "ussd" && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <Smartphone size={23} />
+                <h3>USSD Payment</h3>
+              </div>
+
+              <p>
+                USSD payment demonstration. No real USSD code
+                is generated or dialled.
+              </p>
+
+              <div className="ussd-demo-display">
+                <span>USSD DEMONSTRATION</span>
+                <strong>{formatNaira(total)}</strong>
+                <small>Simulation only — do not dial</small>
+              </div>
+            </section>
+          )}
+
+          {selectedPayment === "cash" && (
+            <section className="payment-detail-panel">
+              <div className="payment-detail-heading">
+                <ShoppingBag size={23} />
+                <h3>Cash on Delivery</h3>
+              </div>
+
+              <div className="cash-delivery-message">
+                <CheckCircle size={20} />
+                Cash on Delivery selected. Pay when your order arrives.
+              </div>
+            </section>
+          )}
 
           {error && (
             <p className="error-message" role="alert">
@@ -239,37 +492,40 @@ function Checkout() {
             type="submit"
             className="primary-btn checkout-submit"
           >
-            Pay {formatNaira(total)}
+            Confirm Demo Order — {formatNaira(total)}
           </button>
 
           <p className="secure-note">
             <LockKeyhole size={15} />
-            Simulated checkout. No real payment is processed.
+            Frontend demonstration only. No real payment is processed.
           </p>
         </form>
 
         <aside className="checkout-summary">
           <h2>Order Summary</h2>
 
-          {cart.map((item) => (
-            <div className="checkout-product" key={item.id}>
-              <img src={item.thumbnail} alt={item.title} />
+          {cart.map((item) => {
+            const discountedPrice =
+              item.price -
+              (item.price * (item.discountPercentage || 0)) / 100;
 
-              <div>
-                <strong>{item.title}</strong>
-                <p>Quantity: {item.quantity}</p>
+            return (
+              <div className="checkout-product" key={item.id}>
+                <img src={item.thumbnail} alt={item.title} />
+
+                <div>
+                  <strong>{item.title}</strong>
+                  <p>Quantity: {item.quantity}</p>
+                </div>
+
+                <span>
+                  {formatNaira(
+                    toNaira(discountedPrice) * item.quantity
+                  )}
+                </span>
               </div>
-
-              <span>
-  {formatNaira(
-    toNaira(
-      item.price -
-      (item.price * item.discountPercentage) / 100
-    ) * item.quantity
-  )}
-</span>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="summary-row">
             <span>Subtotal</span>
