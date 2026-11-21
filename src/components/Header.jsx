@@ -101,33 +101,10 @@ function Header() {
               All Products
             </Link>
 
-            <Link
-              to="/products?category=smartphones"
-              onClick={() => setMenuOpen(false)}
-            >
-              Electronics
-            </Link>
-
-            <Link
-              to="/products?category=beauty"
-              onClick={() => setMenuOpen(false)}
-            >
-              Beauty
-            </Link>
-
-            <Link
-              to="/products?category=womens-dresses"
-              onClick={() => setMenuOpen(false)}
-            >
-              Fashion
-            </Link>
-
-            <Link
-              to="/products?category=furniture"
-              onClick={() => setMenuOpen(false)}
-            >
-              Home & Living
-            </Link>
+           <Link to="/products?category=electronics">Electronics</Link>
+<Link to="/products?category=beauty">Beauty</Link>
+<Link to="/products?category=fashion">Fashion</Link>
+<Link to="/products?category=home-living">Home & Living</Link>
 
           </div>
         </nav>

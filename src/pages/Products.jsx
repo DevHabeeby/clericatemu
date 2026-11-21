@@ -4,43 +4,65 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   getProducts,
-  getCategories,
   getCategoryProducts,
   searchProducts,
 } from "../services/api";
 
 import ProductCard from "../components/ProductCard";
 
+// Main navigation categories mapped to DummyJSON categories
+const categoryMapping = {
+  electronics: [
+    "smartphones",
+    "laptops",
+    "tablets",
+    "mobile-accessories",
+  ],
+
+  beauty: [
+    "beauty",
+    "fragrances",
+    "skin-care",
+  ],
+
+  fashion: [
+    "tops",
+    "mens-shirts",
+    "mens-shoes",
+    "mens-watches",
+    "womens-dresses",
+    "womens-shoes",
+    "womens-watches",
+    "womens-bags",
+    "womens-jewellery",
+  ],
+
+  "home-living": [
+    "furniture",
+    "home-decoration",
+    "kitchen-accessories",
+  ],
+};
+
+// Convert category names to a consistent format
+function normalizeCategory(value) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/\s+/g, "-");
+}
+
 function Products() {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
 
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "";
-
-  // Load categories
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const data = await getCategories();
-
-        if (Array.isArray(data)) {
-          setCategories(data);
-        } else {
-          setCategories([]);
-        }
-      } catch (error) {
-        console.error("Category error:", error);
-        setCategories([]);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   // Load products
   useEffect(() => {
@@ -54,21 +76,62 @@ function Products() {
         let data;
 
         if (search.trim()) {
+          // Search products
           data = await searchProducts(search.trim());
+
+          if (active) {
+            setProducts(data.products || []);
+          }
         } else if (category) {
-          data = await getCategoryProducts(category);
-        } else {
-          data = await getProducts();
-        }
+          // Normalize category from navbar or URL
+          const normalizedCategory =
+            normalizeCategory(category);
 
-        console.log("Products API response:", data);
+          // Find matching API categories
+          const mappedCategories =
+            categoryMapping[normalizedCategory];
 
-        if (active) {
-          if (Array.isArray(data.products)) {
-            setProducts(data.products);
+          if (mappedCategories) {
+            // Fetch products from every category in the group
+            const responses = await Promise.all(
+              mappedCategories.map((apiCategory) =>
+                getCategoryProducts(apiCategory)
+              )
+            );
+
+            const combinedProducts = responses.flatMap(
+              (response) => response.products || []
+            );
+
+            // Remove duplicate products
+            const uniqueProducts = [
+              ...new Map(
+                combinedProducts.map((product) => [
+                  product.id,
+                  product,
+                ])
+              ).values(),
+            ];
+
+            if (active) {
+              setProducts(uniqueProducts);
+            }
           } else {
-            setProducts([]);
-            setError("Products data was not returned correctly.");
+            // If it's already an API category, use it directly
+            data = await getCategoryProducts(
+              normalizedCategory
+            );
+
+            if (active) {
+              setProducts(data.products || []);
+            }
+          }
+        } else {
+          // Load all products
+          data = await getProducts();
+
+          if (active) {
+            setProducts(data.products || []);
           }
         }
       } catch (error) {
@@ -113,7 +176,9 @@ function Products() {
     <main className="container section products-page">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">FIND YOUR FAVOURITES</p>
+          <p className="eyebrow">
+            FIND YOUR FAVOURITES
+          </p>
 
           <h2>
             {search
@@ -125,34 +190,60 @@ function Products() {
         </div>
 
         <span>
-          {loading ? "Loading..." : `${products.length} products`}
+          {loading
+            ? "Loading..."
+            : `${products.length} products`}
         </span>
       </div>
 
+      {/* Category filter */}
       <div className="filter-bar">
-        <label htmlFor="category">Category:</label>
+        <label htmlFor="category">
+          Category:
+        </label>
 
         <select
           id="category"
           value={category}
-          onChange={(event) => changeCategory(event.target.value)}
+          onChange={(event) =>
+            changeCategory(event.target.value)
+          }
         >
-          <option value="">All Categories</option>
+          <option value="">
+            All Categories
+          </option>
 
-          {categories.map((item) => (
-            <option key={item} value={item}>
-              {item.replaceAll("-", " ")}
-            </option>
-          ))}
+          <option value="electronics">
+            Electronics
+          </option>
+
+          <option value="beauty">
+            Beauty
+          </option>
+
+          <option value="fashion">
+            Fashion
+          </option>
+
+          <option value="home-living">
+            Home & Living
+          </option>
         </select>
       </div>
 
+      {/* Product results */}
       {loading ? (
-        <p className="status-message">Loading products...</p>
+        <p className="status-message">
+          Loading products...
+        </p>
       ) : error ? (
-        <p className="error-message">{error}</p>
+        <p className="error-message">
+          {error}
+        </p>
       ) : products.length === 0 ? (
-        <p className="status-message">No products found.</p>
+        <p className="status-message">
+          No products found.
+        </p>
       ) : (
         <div className="product-grid">
           {products.map((product) => (
